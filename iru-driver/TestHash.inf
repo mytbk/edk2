@@ -1,0 +1,37 @@
+[Defines]
+  INF_VERSION                    = 0x00010006
+  BASE_NAME                      = TestHash
+  FILE_GUID                      = bf06fd12-909a-41a4-87ea-e7b396bff721
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 0.1
+  ENTRY_POINT                    = UefiMain
+[Sources]
+   TestHash.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  CryptoPkg/CryptoPkg.dec
+
+[LibraryClasses]
+   UefiDriverEntryPoint
+   UefiLib
+   OpensslLib
+
+[Protocols]
+  gEfiDiskIoProtocolGuid
+  gEfiDevicePathToTextProtocolGuid
+  gEfiSimpleFileSystemProtocolGuid
+
+[Depex]
+   gEfiSimpleFileSystemProtocolGuid
+
+[FixedPcd]
+gEfiMdePkgTokenSpaceGuid.PcdFSBClock|600000000
+gEfiMdePkgTokenSpaceGuid.PcdMaximumUnicodeStringLength
+[FeaturePcd]
+gEfiMdePkgTokenSpaceGuid.PcdComponentNameDisable|FALSE
+gEfiMdePkgTokenSpaceGuid.PcdDriverDiagnosticsDisable
+[PatchPcd]
+gEfiMdePkgTokenSpaceGuid.PcdUefiVariableDefaultLangCodes
+[BuildOptions]
+MSFT:DEBUG_*_IA32_CC_FLAGS = /Od
