@@ -58,7 +58,7 @@ typedef EFI_STATUS (EFIAPI *EFI_CCID_SEND_COMMAND)(
 	EFI_CCID_PROTOCOL *This,
 	unsigned char type,
 	unsigned int msgbyte,
-	const char *payload,
+	const unsigned char *payload,
 	UINTN len
 	);
 typedef EFI_STATUS (EFIAPI *EFI_CCID_RECV_RESPONSE)(

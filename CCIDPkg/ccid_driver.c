@@ -42,7 +42,7 @@ static EFI_STATUS EFIAPI CCIDSend(
 	EFI_CCID_PROTOCOL *This,
 	unsigned char type,
 	unsigned int msgbyte,
-	const char* payload,
+	const unsigned char* payload,
 	UINTN len);
 static EFI_STATUS EFIAPI CCIDRecv(
 	EFI_CCID_PROTOCOL *,
@@ -235,7 +235,7 @@ static EFI_STATUS EFIAPI
 CCIDSend(EFI_CCID_PROTOCOL *This,
 			unsigned char type,
 			unsigned int msgbyte,
-			const char* payload, UINTN len)
+			const unsigned char* payload, UINTN len)
 {
 	CCID_PRIVATE_DATA *priv = CCID_PRIVATE_DATA_FROM_THIS(This);
 	struct CCID_Header *pkt = AllocatePool(len+10);
