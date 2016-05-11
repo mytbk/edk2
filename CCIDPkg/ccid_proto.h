@@ -57,7 +57,7 @@ struct CCID_Header
 typedef EFI_STATUS (EFIAPI *EFI_CCID_SEND_COMMAND)(
 	EFI_CCID_PROTOCOL *This,
 	unsigned char type,
-	unsigned int msgtype,
+	unsigned int msgbyte,
 	const char *payload,
 	UINTN len
 	);
@@ -74,4 +74,4 @@ struct _EFI_CCID_PROTOCOL
 	EFI_CCID_RECV_RESPONSE Recv;
 };
 
-extern EFI_GUID gEfiAudioProtocolGUID;
+extern EFI_GUID gEfiCcidProtocolGuid;

@@ -1,0 +1,19 @@
+[Defines]
+  DEC_SPECIFICATION              = 0x00010005
+  PACKAGE_NAME                   = CCIDPkg
+#  PACKAGE_UNI_FILE               = CryptoPkg.uni
+  PACKAGE_GUID                   = 080c9af4-13e1-4e67-a15b-f35bb875a178
+  PACKAGE_VERSION                = 1
+
+[Includes]
+
+[LibraryClasses]
+  ##  @libraryclass  Provides basic library functions for cryptographic primitives.
+  ##
+
+[Protocols]
+  ## ccid_proto.h
+  gEfiCcidProtocolGuid = { 0x21b13e79, 0xfa25, 0x43e0, {0x93, 0xb4, 0x81, 0x05, 0x83, 0xdf, 0xbb, 0x65}}
+
+[UserExtensions.TianoCore."ExtraFiles"]
+

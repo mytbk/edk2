@@ -38,8 +38,17 @@ CCIDDriverBindingStop (
   IN  EFI_HANDLE                     *ChildHandleBuffer
   );
 
-EFI_CCID_SEND_COMMAND CCIDSend;
-EFI_CCID_RECV_RESPONSE CCIDRecv;
+static EFI_STATUS EFIAPI CCIDSend(
+	EFI_CCID_PROTOCOL *This,
+	unsigned char type,
+	unsigned int msgbyte,
+	const char* payload,
+	UINTN len);
+static EFI_STATUS EFIAPI CCIDRecv(
+	EFI_CCID_PROTOCOL *,
+	unsigned char *,
+	UINTN *
+	);
 
 #define CCID_PRIVATE_DATA_SIGNATURE  SIGNATURE_32 ('C', 'C', 'I', 'D')
 #define EFI_CCID_PROTOCOL_REVISION  0x1
@@ -222,8 +231,7 @@ CCIDDriverBindingStop (
 	return EFI_SUCCESS;
 }
 
-EFI_STATUS
-EFIAPI
+static EFI_STATUS EFIAPI
 CCIDSend(EFI_CCID_PROTOCOL *This,
 			unsigned char type,
 			unsigned int msgbyte,
@@ -233,6 +241,7 @@ CCIDSend(EFI_CCID_PROTOCOL *This,
 	struct CCID_Header *pkt = AllocatePool(len+10);
 	EFI_STATUS Status;
 	UINT32 err;
+	UINTN xferlen = len+10;
 
 	pkt->msgtype = type;
 	pkt->length = len;
@@ -242,31 +251,31 @@ CCIDSend(EFI_CCID_PROTOCOL *This,
 	pkt->msgbyte[1] = msgbyte>>8;
 	pkt->msgbyte[2] = msgbyte>>16;
 	if (len!=0) {
-		CopyMem(pkt->paylod, payload, len);
+		CopyMem(pkt->payload, payload, len);
 	}
 	priv->seqNo++;
 	Status = priv->usbio->UsbBulkTransfer(
 		priv->usbio,
 		0x02, /* FIXME: only endpoint 0x02 is supported */
 		pkt,
-		len+10,
+		&xferlen,
 		0,
 		&err);
 	if (EFI_ERROR(Status)) {
-		Print("Error %d in CCIDSend!\n", err);
+		Print(L"Error %d in CCIDSend!\n", err);
 	}
 	FreePool(pkt);
 
 	return Status;
 }
 
-EFI_STATUS
-EFIAPI
+static EFI_STATUS EFIAPI
 CCIDRecv(EFI_CCID_PROTOCOL *This,
 			unsigned char* buffer, UINTN *len)
 {
 	EFI_STATUS Status;
 	UINT32 err;
+	CCID_PRIVATE_DATA *priv = CCID_PRIVATE_DATA_FROM_THIS(This);
 
 	Status = priv->usbio->UsbBulkTransfer(
 		priv->usbio,
@@ -274,10 +283,10 @@ CCIDRecv(EFI_CCID_PROTOCOL *This,
 		buffer,
 		len,
 		0,
-		err
+		&err
 		);
 	if (EFI_ERROR(Status)) {
-		Print("Error %d in CCIDRecv!\n", err);
+		Print(L"Error in CCIDRecv, Status=%d, err=%d!\n", Status, err);
 	}
 	return Status;
 }
