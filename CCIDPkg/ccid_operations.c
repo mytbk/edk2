@@ -79,6 +79,69 @@ EFI_STATUS IccPowerOn(EFI_CCID_PROTOCOL *ccid)
 	return EFI_SUCCESS;
 }
 
+/* first get parameters, then set the parameters as the same value,
+	it's the sequence for initializing Yubikey 4
+*/
+EFI_STATUS resetParam(EFI_CCID_PROTOCOL *ccid)
+{
+	EFI_STATUS Status;
+	UINT8 buffer[100];
+	struct CCID_Header *pkt = (struct CCID_Header*)buffer;
+	UINTN len=100;
+
+	Status = ccid->Send(
+		ccid,
+		PC2RDR_GetParam,
+		0,
+		NULL, 0);
+	if (EFI_ERROR(Status)) {
+		Print(L"resetParam: CCID GetParam Send failure!\n");
+		return Status;
+	}
+
+	Status = ccid->Recv(
+		ccid,
+		buffer,
+		&len
+		);
+	if (EFI_ERROR(Status)) {
+		Print(L"resetParam: CCID Recv failure!\n");
+		return Status;
+	}
+	if (pkt->msgtype==RDR2PC_Param) {
+		Print(L"resetParam: Successfully get parameters.\n");
+	} else {
+		Print(L"resetParam: Received a non parameter message!\n");
+	}
+
+	Status = ccid->Send(
+		ccid,
+		PC2RDR_SetParam,
+		0,
+		pkt->payload, pkt->length);
+	if (EFI_ERROR(Status)) {
+		Print(L"resetParam: CCID SetParam Send failure!\n");
+		return Status;
+	}
+
+	len = sizeof(buffer);
+	Status = ccid->Recv(
+		ccid,
+		buffer,
+		&len
+		);
+	if (EFI_ERROR(Status)) {
+		Print(L"resetParam: CCID Recv failure!\n");
+		return Status;
+	}
+	if (pkt->msgtype==RDR2PC_SlotStatus) {
+		Print(L"Slot Status received: Status=%d Error=%d ClockStatus=%d\n",
+				pkt->msgbyte[0], pkt->msgbyte[1], pkt->msgbyte[2]);
+	}
+
+	return EFI_SUCCESS;
+}
+
 EFI_STATUS
 EFIAPI
 UefiMain(
@@ -122,6 +185,16 @@ UefiMain(
 		Status = IccPowerOn(ccid);
 		if (EFI_ERROR(Status)) {
 			Print(L"Fail to power on the card.\n");
+			return Status;
+		}
+		Status = resetParam(ccid);
+		if (EFI_ERROR(Status)) {
+			Print(L"Fail to reset parameters.\n");
+			return Status;
+		}
+		Status = GetSlotStatus(ccid);
+		if (EFI_ERROR(Status)) {
+			Print(L"Fail to get slot status.\n");
 			return Status;
 		}
 	}
