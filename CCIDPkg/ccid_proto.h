@@ -1,20 +1,3 @@
-/*
- * =====================================================================================
- *
- *       Filename:  audio.h
- *
- *    Description:  
- *
- *        Version:  1.0
- *        Created:  05/10/2012 08:07:46 PM
- *       Revision:  none
- *       Compiler:  gcc
- *
- *         Author:  DAI ZHENGHUA (), djx.zhenghua@gmail.com
- *        Company:  
- *
- * =====================================================================================
- */
 #pragma once
 
 #include <Uefi.h>
@@ -36,9 +19,46 @@
 #define CCID_PROTOCOL  EFI_CCID_PROTOCOL_GUID
 typedef struct _EFI_CCID_PROTOCOL EFI_CCID_PROTOCOL;
 
+enum msgType {
+	PC2RDR_IccPowerOn = 0x62,
+	PC2RDR_IccPowerOff = 0x63,
+	PC2RDR_GetSlotStatus = 0x65,
+	PC2RDR_XfrBlock = 0x6f,
+	PC2RDR_GetParam = 0x6c,
+	PC2RDR_ResetParam = 0x6d,
+	PC2RDR_SetParam = 0x61,
+	PC2RDR_Escape = 0x6b,
+	PC2RDR_IccClock = 0x6e,
+	PC2RDR_T0APDU = 0x6a,
+	PC2RDR_Secure = 0x69,
+	PC2RDR_Mechanical = 0x71,
+	PC2RDR_Abort = 0x72,
+	PC2RDR_SetDataRate = 0x73,
+	RDR2PC_DataBlock = 0x80,
+	RDR2PC_SlotStatus = 0x81,
+	RDR2PC_Param = 0x82,
+	RDR2PC_Escape = 0x83,
+	RDR2PC_DataRate = 0x84
+};
+
+/* 10-byte CCID message header,
+	see CCID specification chapter 6
+*/
+struct CCID_Header
+{
+	unsigned char msgtype;
+	UINT32 length;
+	unsigned char slot;
+	unsigned char seqNo;
+	unsigned char msgbyte[3];
+	unsigned char payload[0];
+}__attribute__((packed));
+
 typedef EFI_STATUS (EFIAPI *EFI_CCID_SEND_COMMAND)(
 	EFI_CCID_PROTOCOL *This,
-	const char *cmd,
+	unsigned char type,
+	unsigned int msgtype,
+	const char *payload,
 	UINTN len
 	);
 typedef EFI_STATUS (EFIAPI *EFI_CCID_RECV_RESPONSE)(
@@ -55,5 +75,3 @@ struct _EFI_CCID_PROTOCOL
 };
 
 extern EFI_GUID gEfiAudioProtocolGUID;
-
-

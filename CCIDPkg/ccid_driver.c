@@ -1,22 +1,3 @@
-/*
- * =====================================================================================
- *
- *       Filename:  accdriver.c
- *
- *    Description:  
- *
- *        Version:  1.0
- *        Created:  03/12/2012 09:13:55 PM
- *       Revision:  none
- *       Compiler:  gcc
- *
- *         Author:  DAI ZHENGHUA (), djx.zhenghua@gmail.com
- *        Company:  
- *
- * =====================================================================================
- */
-
-
 #include <Uefi.h>
 #include <Base.h>
 #include <Library/UefiLib.h>
@@ -57,16 +38,17 @@ CCIDDriverBindingStop (
   IN  EFI_HANDLE                     *ChildHandleBuffer
   );
 
-EFI_STATUS EFIAPI CCIDSend(EFI_CCID_PROTOCOL *, const char*, UINTN);
-EFI_STATUS EFIAPI CCIDRecv(EFI_CCID_PROTOCOL *, unsigned char*, UINTN *);
+EFI_CCID_SEND_COMMAND CCIDSend;
+EFI_CCID_RECV_RESPONSE CCIDRecv;
 
 #define CCID_PRIVATE_DATA_SIGNATURE  SIGNATURE_32 ('C', 'C', 'I', 'D')
 #define EFI_CCID_PROTOCOL_REVISION  0x1
 
 typedef struct {
-    UINTN Signature;
-    EFI_CCID_PROTOCOL ccid_proto;
-    EFI_USB_IO_PROTOCOL *usbio;
+	UINTN Signature;
+	EFI_CCID_PROTOCOL ccid_proto;
+	EFI_USB_IO_PROTOCOL *usbio;
+	unsigned char seqNo;
 } CCID_PRIVATE_DATA;
 
 #define CCID_PRIVATE_DATA_FROM_THIS(a) CR (a, CCID_PRIVATE_DATA, ccid_proto, CCID_PRIVATE_DATA_SIGNATURE)
@@ -95,7 +77,8 @@ CCID_PRIVATE_DATA gCCIDPrivateDataTemplate = {
 		CCIDSend,
 		CCIDRecv,
 	},
-	NULL
+	NULL,
+	0
 };
 
 /**
@@ -241,16 +224,62 @@ CCIDDriverBindingStop (
 
 EFI_STATUS
 EFIAPI
-CCIDSend(EFI_CCID_PROTOCOL *This, const char* cmd, UINTN len)
+CCIDSend(EFI_CCID_PROTOCOL *This,
+			unsigned char type,
+			unsigned int msgbyte,
+			const char* payload, UINTN len)
 {
-	return EFI_SUCCESS;
+	CCID_PRIVATE_DATA *priv = CCID_PRIVATE_DATA_FROM_THIS(This);
+	struct CCID_Header *pkt = AllocatePool(len+10);
+	EFI_STATUS Status;
+	UINT32 err;
+
+	pkt->msgtype = type;
+	pkt->length = len;
+	pkt->slot = 0; /* FIXME: now only slot 0 is supported */
+	pkt->seqNo = priv->seqNo;
+	pkt->msgbyte[0] = msgbyte;
+	pkt->msgbyte[1] = msgbyte>>8;
+	pkt->msgbyte[2] = msgbyte>>16;
+	if (len!=0) {
+		CopyMem(pkt->paylod, payload, len);
+	}
+	priv->seqNo++;
+	Status = priv->usbio->UsbBulkTransfer(
+		priv->usbio,
+		0x02, /* FIXME: only endpoint 0x02 is supported */
+		pkt,
+		len+10,
+		0,
+		&err);
+	if (EFI_ERROR(Status)) {
+		Print("Error %d in CCIDSend!\n", err);
+	}
+	FreePool(pkt);
+
+	return Status;
 }
 
 EFI_STATUS
 EFIAPI
-CCIDRecv(EFI_CCID_PROTOCOL *This, unsigned char* cmd, UINTN *len)
+CCIDRecv(EFI_CCID_PROTOCOL *This,
+			unsigned char* buffer, UINTN *len)
 {
-	return EFI_SUCCESS;
+	EFI_STATUS Status;
+	UINT32 err;
+
+	Status = priv->usbio->UsbBulkTransfer(
+		priv->usbio,
+		0x82, /* FIXME: only endpoint 0x82 is supported */
+		buffer,
+		len,
+		0,
+		err
+		);
+	if (EFI_ERROR(Status)) {
+		Print("Error %d in CCIDRecv!\n", err);
+	}
+	return Status;
 }
 
 EFI_STATUS
