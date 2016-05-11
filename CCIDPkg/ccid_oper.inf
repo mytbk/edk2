@@ -1,0 +1,36 @@
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = ccidtest
+  FILE_GUID                      = 6987936E-EF34-44db-BE97-1FA5E4ED2117
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = UefiMain
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+   ccid_operations.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  CCIDPkg/ccid.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiLib
+  UefiBootServicesTableLib
+
+[Protocols]
+  gEfiUsbIoProtocolGuid
+  gEfiCcidProtocolGuid
+
+[BuildOptions]
+ MSFT:DEBUG_*_*_CC_FLAGS   = /wd4201  /wd4305
+ MSFT:RELEASE_*_*_CC_FLAGS = /wd4201
