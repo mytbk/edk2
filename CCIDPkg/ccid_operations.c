@@ -1,4 +1,6 @@
 #include "ccid_proto.h"
+#include <Library/MemoryAllocationLib.h>
+#include <Library/BaseMemoryLib.h>
 
 EFI_STATUS
 GetSlotStatus(EFI_CCID_PROTOCOL *ccid)
@@ -142,6 +144,75 @@ EFI_STATUS resetParam(EFI_CCID_PROTOCOL *ccid)
 	return EFI_SUCCESS;
 }
 
+EFI_STATUS TransferBlock(
+	EFI_CCID_PROTOCOL *ccid,
+	const unsigned char *block,
+	UINTN len)
+{
+	EFI_STATUS Status;
+
+	Status = ccid->Send(
+		ccid,
+		PC2RDR_XfrBlock,
+		0x04, /* block wait time integer: 4 */
+		block, len);
+	if (EFI_ERROR(Status)) {
+		Print(L"TransferBlock: CCID Send failure!\n");
+		return Status;
+	} else {
+		return EFI_SUCCESS;
+	}
+}
+
+EFI_STATUS SelectPGP(EFI_CCID_PROTOCOL *ccid)
+{
+	const unsigned char *selectcmd = (const unsigned char*)
+		"\x00\xa4\x04\x00\x06"
+		"\xd2\x76\x00\x01\x24\x01";
+
+	return TransferBlock(ccid, selectcmd, 11);
+}
+
+EFI_STATUS RecvData(
+	EFI_CCID_PROTOCOL *ccid,
+	unsigned char *recvbuf,
+	UINTN *len
+	)
+{
+	UINTN recvlen = (*len)+10;
+	EFI_STATUS Status;
+	unsigned char *ccidbuf = AllocatePool(recvlen);
+	struct CCID_Header *pkt = (struct CCID_Header*)ccidbuf;
+
+	if (ccidbuf==NULL) {
+		return EFI_OUT_OF_RESOURCES;
+	}
+
+	Status = ccid->Recv(
+		ccid,
+		ccidbuf,
+		&recvlen
+		);
+	if (EFI_ERROR(Status)) {
+		Print(L"RecvData: CCID Recv failure!\n");
+		goto Error;
+	}
+	if (pkt->msgtype!=RDR2PC_DataBlock) {
+		Print(L"RecvData: non-datablock received!\n");
+		Status = EFI_ABORTED;
+		goto Error;
+	}
+	CopyMem(recvbuf, pkt->payload, recvlen-10);
+	*len = recvlen-10;
+	Status = EFI_SUCCESS;
+
+Error:
+	if (ccidbuf) {
+		FreePool(ccidbuf);
+	}
+	return Status;
+}
+
 EFI_STATUS
 EFIAPI
 UefiMain(
@@ -153,6 +224,8 @@ UefiMain(
 	EFI_STATUS Status;
 	UINTN nHandles;
 	EFI_HANDLE *controllerHandles = NULL;
+	unsigned char buffer[1024];
+	UINTN recvlen;
 
 	Status = gBS->LocateHandleBuffer(
 		ByProtocol,
@@ -197,6 +270,21 @@ UefiMain(
 			Print(L"Fail to get slot status.\n");
 			return Status;
 		}
+		Status = SelectPGP(ccid);
+		if (EFI_ERROR(Status)) {
+			Print(L"Fail to select PGP.\n");
+			return Status;
+		}
+		recvlen = 1024;
+		Status = RecvData(ccid, buffer, &recvlen);
+		if (EFI_ERROR(Status)) {
+			Print(L"Fail to receive data.\n");
+			return Status;
+		}
+		for (UINTN i=0; i<recvlen; i++) {
+			Print(L"%02x ", buffer[i]);
+		}
+		Print(L"\n");
 	}
 
 	return EFI_SUCCESS;

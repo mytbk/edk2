@@ -54,6 +54,21 @@ struct CCID_Header
 	unsigned char payload[0];
 }__attribute__((packed));
 
+struct OpenPGP_Packet
+{
+	/* class byte,
+		0x00 in most cases
+		0x0c for secure messaging (OpenPGP Card 7.2)
+	*/
+	unsigned char cla;
+	unsigned char ins;
+	unsigned char p1;
+	unsigned char p2;
+	/* Lc and Le for extended length field */
+	unsigned char lc;
+	unsigned char data_field_le[0];
+}__attribute__((packed));
+
 typedef EFI_STATUS (EFIAPI *EFI_CCID_SEND_COMMAND)(
 	EFI_CCID_PROTOCOL *This,
 	unsigned char type,
