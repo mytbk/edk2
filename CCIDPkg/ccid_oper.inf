@@ -16,6 +16,7 @@
 
 [Sources]
    ccid_operations.c
+   tlv.c
 
 [Packages]
   MdePkg/MdePkg.dec
