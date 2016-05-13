@@ -69,6 +69,14 @@ struct OpenPGP_Packet
 	unsigned char data_field_le[0];
 }__attribute__((packed));
 
+/* OpenPGP card data objects */
+#define OPENPGP_HISTORICALS 0x5f52
+#define OPENPGP_APPLICATION_RELATED_DATA 0x6e
+#define OPENPGP_CARDHOLDER_RELATED_DATA 0x65
+#define OPENPGP_AID 0x4f
+#define OPENPGP_PWSTATUS 0xc4
+#define OPENPGP_URL 0x5f50
+
 typedef EFI_STATUS (EFIAPI *EFI_CCID_SEND_COMMAND)(
 	EFI_CCID_PROTOCOL *This,
 	unsigned char type,

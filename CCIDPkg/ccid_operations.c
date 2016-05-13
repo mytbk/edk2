@@ -173,6 +173,15 @@ EFI_STATUS SelectPGP(EFI_CCID_PROTOCOL *ccid)
 	return TransferBlock(ccid, selectcmd, 11);
 }
 
+EFI_STATUS PGP_GetData(EFI_CCID_PROTOCOL *ccid, int addr)
+{
+	unsigned char getDataCmd[] = {0x00, 0xca, 0x00, 0x00, 0x00};
+	getDataCmd[2] = (addr>>8)&0xff;
+	getDataCmd[3] = addr&0xff;
+
+	return TransferBlock(ccid, getDataCmd, 5);
+}
+
 EFI_STATUS RecvData(
 	EFI_CCID_PROTOCOL *ccid,
 	unsigned char *recvbuf,
@@ -212,6 +221,11 @@ Error:
 	}
 	return Status;
 }
+
+#ifndef SAFECALLE
+#define SAFECALLE(v,e) v=e; \
+	if (EFI_ERROR(v)) {Print(L"%s failed.\n", #e); return v;}
+#endif
 
 EFI_STATUS
 EFIAPI
@@ -270,19 +284,35 @@ UefiMain(
 			Print(L"Fail to get slot status.\n");
 			return Status;
 		}
-		Status = SelectPGP(ccid);
-		if (EFI_ERROR(Status)) {
-			Print(L"Fail to select PGP.\n");
-			return Status;
-		}
+
+		SAFECALLE(Status, SelectPGP(ccid));
 		recvlen = 1024;
-		Status = RecvData(ccid, buffer, &recvlen);
-		if (EFI_ERROR(Status)) {
-			Print(L"Fail to receive data.\n");
-			return Status;
+		SAFECALLE(Status, RecvData(ccid, buffer, &recvlen));
+		if (buffer[recvlen-2]==0x90 && buffer[recvlen-1]==0x00) {
+			Print(L"Select OpenPGP success.\n");
 		}
-		for (UINTN i=0; i<recvlen; i++) {
+
+		SAFECALLE(Status, PGP_GetData(ccid, OPENPGP_AID));
+
+		recvlen = 1024;
+		SAFECALLE(Status, RecvData(ccid, buffer, &recvlen));
+		if (buffer[recvlen-2]==0x90 && buffer[recvlen-1]==0x00) {
+			Print(L"Get AID success, AID:\n");
+		}
+		for (UINTN i=0; i<recvlen-2; i++) {
 			Print(L"%02x ", buffer[i]);
+		}
+		Print(L"\n");
+
+		SAFECALLE(Status, PGP_GetData(ccid, OPENPGP_URL));
+
+		recvlen = 1024;
+		SAFECALLE(Status, RecvData(ccid, buffer, &recvlen));
+		if (buffer[recvlen-2]==0x90 && buffer[recvlen-1]==0x00) {
+			Print(L"URL: ");
+		}
+		for (UINTN i=0; i<recvlen-2; i++) {
+			Print(L"%c", buffer[i]);
 		}
 		Print(L"\n");
 	}
