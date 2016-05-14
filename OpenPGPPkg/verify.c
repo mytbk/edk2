@@ -1,10 +1,10 @@
-#include <Uefi.h>
+#ifdef EFIAPI
 #include <Library/UefiLib.h>
-#include <Library/UefiBootServicesTableLib.h>
-#include <Library/UefiRuntimeServicesTableLib.h>
-#include <Library/UefiRuntimeLib.h>
-
+#else
 #include <stdio.h>
+#define AsciiPrint printf
+#endif
+
 #include <string.h>
 #include <openssl/sha.h>
 #include <openssl/rsa.h>
@@ -84,7 +84,7 @@ pkcs1_emsa_encode(uint8_t hashalgo, const uint8_t *hash, uint32_t hashlen, uint3
 		tLen += sizeof(sha512_header);
 		break;
 	default:
-		Print(L"pkcs1_emsa_encode: hash algorithm unsupported!\n");
+		AsciiPrint("pkcs1_emsa_encode: hash algorithm unsupported!\n");
 		return -1;
 	}
 
@@ -112,7 +112,7 @@ int sha_init(union shactx *ctx, uint8_t algo)
 	case HASH_SHA512:
 		return SHA512_Init(&ctx->sha512ctx);
 	default:
-		Print(L"Hash algorithm not supported!\n");
+		AsciiPrint("Hash algorithm not supported!\n");
 		return -1;
 	}
 }
@@ -127,7 +127,7 @@ int sha_update(union shactx *ctx, const void *d, size_t l, uint8_t algo)
 	case HASH_SHA512:
 		return SHA512_Update(&ctx->sha512ctx, d, l);
 	default:
-		Print(L"Hash algorithm not supported!\n");
+		AsciiPrint("Hash algorithm not supported!\n");
 		return -1;
 	}
 }
@@ -142,7 +142,7 @@ int sha_final(unsigned char *md, union shactx *ctx, uint8_t algo)
 	case HASH_SHA512:
 		return SHA512_Final(md, &ctx->sha512ctx);
 	default:
-		Print(L"Hash algorithm not supported!\n");
+		AsciiPrint("Hash algorithm not supported!\n");
 		return -1;
 	}
 }
@@ -169,7 +169,7 @@ int sigverify(
 								 digest_len(hashalgo),
 								 emLen,
 								 em2str)<0) {
-		Print(L"PKCS#1_EMSA_Encode error!\n");
+		AsciiPrint("PKCS#1_EMSA_Encode error!\n");
 		result = 0;
 		goto finish;
 	}
@@ -225,9 +225,9 @@ pgpverify(struct RSA_pubkey *pubkey,
 
 	if (digest_toverify[0]==sigdata->hashleft[0] &&
 		 digest_toverify[1]==sigdata->hashleft[1]) {
-		Print(L"hashleft verify success!\n");
+		AsciiPrint("hashleft verify success!\n");
 	} else {
-		Print(L"hashleft bad!\n");
+		AsciiPrint("hashleft bad!\n");
 		return 0;
 	}
 
