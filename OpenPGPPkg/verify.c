@@ -147,6 +147,51 @@ int sha_final(unsigned char *md, union shactx *ctx, uint8_t algo)
 	}
 }
 
+int sigverify(
+	const uint8_t *sigdata, uint32_t siglen_bytes,
+	uint8_t hashalgo, const uint8_t *digest_toverify,
+	struct RSA_pubkey *pubkey)
+{
+	int result = 0;
+
+	BIGNUM *sigmsg = BN_bin2bn(sigdata, siglen_bytes, NULL);
+	BIGNUM *rsa_e = BN_bin2bn(pubkey->RSA_e, (pubkey->rsa_elen+7)/8, NULL);
+	BIGNUM *rsa_n = BN_bin2bn(pubkey->RSA_n, (pubkey->rsa_nlen+7)/8, NULL);
+	BIGNUM *em = BN_new();
+	BN_CTX *bnctx = BN_CTX_new();
+	BN_mod_exp(em, sigmsg, rsa_e, rsa_n, bnctx);
+
+	uint8_t em2str[1024];
+	uint32_t emLen = siglen_bytes;
+
+	if (pkcs1_emsa_encode(hashalgo,
+								 digest_toverify,
+								 digest_len(hashalgo),
+								 emLen,
+								 em2str)<0) {
+		Print(L"PKCS#1_EMSA_Encode error!\n");
+		result = 0;
+		goto finish;
+	}
+	BIGNUM *em2 = BN_bin2bn(em2str, emLen, NULL);
+	/* compare em and em2, if equal then verify success */
+	if (BN_cmp(em,em2)==0) {
+		result = 1;
+	} else {
+		result = 0;
+	}
+
+	BN_free(em2);
+finish:
+	BN_free(sigmsg);
+	BN_free(rsa_e);
+	BN_free(rsa_n);
+	BN_free(em);
+	BN_CTX_free(bnctx);
+
+	return result;
+}
+
 /* pgpverify:
 	@input parsed public key, signature data, an IO buffer
 	@output 1 if success and 0 if fail
@@ -160,7 +205,6 @@ pgpverify(struct RSA_pubkey *pubkey,
 	size_t len;
 	uint8_t trailer[6];
 	uint8_t digest_toverify[100];
-	int result = 0;
 
 	sha_init(&ctx, sigdata->hashalgo);
 	while (!buffer->ioeof(buffer)) {
@@ -187,41 +231,8 @@ pgpverify(struct RSA_pubkey *pubkey,
 		return 0;
 	}
 
-	/* verify the signature */
-	BIGNUM *sigmsg = BN_bin2bn(sigdata->sigdata, (sigdata->siglen+7)/8, NULL);
-	BIGNUM *rsa_e = BN_bin2bn(pubkey->RSA_e, (pubkey->rsa_elen+7)/8, NULL);
-	BIGNUM *rsa_n = BN_bin2bn(pubkey->RSA_n, (pubkey->rsa_nlen+7)/8, NULL);
-	BIGNUM *em = BN_new();
-	BN_CTX *bnctx = BN_CTX_new();
-	BN_mod_exp(em, sigmsg, rsa_e, rsa_n, bnctx);
-
-	uint8_t em2str[1024];
-	uint32_t emLen = (sigdata->siglen+7)/8;
-
-	if (pkcs1_emsa_encode(sigdata->hashalgo,
-								 digest_toverify,
-								 digest_len(sigdata->hashalgo),
-								 emLen,
-								 em2str)<0) {
-		Print(L"PKCS#1_EMSA_Encode error!\n");
-		result = 0;
-		goto finish;
-	}
-	BIGNUM *em2 = BN_bin2bn(em2str, emLen, NULL);
-	/* compare em and em2, if equal then verify success */
-	if (BN_cmp(em,em2)==0) {
-		result = 1;
-	} else {
-		result = 0;
-	}
-
-	BN_free(em2);
-finish:
-	BN_free(sigmsg);
-	BN_free(rsa_e);
-	BN_free(rsa_n);
-	BN_free(em);
-	BN_CTX_free(bnctx);
-
-	return result;
+	return sigverify(
+		sigdata->sigdata, (sigdata->siglen+7)/8,
+		sigdata->hashalgo, digest_toverify,
+		pubkey);
 }
