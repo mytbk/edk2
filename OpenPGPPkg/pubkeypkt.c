@@ -1,9 +1,12 @@
-#include <stdio.h>
 #include <openssl/sha.h>
 #include <string.h>
 #include "cryptodata.h"
 
-#define puts(x) {}
+#ifdef EFIAPI
+#define puts(x) AsciiPrint(x)
+#else
+#include <stdio.h>
+#endif
 
 struct PGP_pubkeypkt {
 	uint8_t ver; /* must be 4 */
@@ -34,7 +37,6 @@ int
 parse_pubkey(uint8_t *buff, struct RSA_pubkey *rsa_info)
 {
 	uint32_t pktlen;
-	SHA_CTX ctx;
 	struct PGP_pubkeypkt *keypkt;
 	int l;
 
@@ -43,15 +45,19 @@ parse_pubkey(uint8_t *buff, struct RSA_pubkey *rsa_info)
 		return -1;
 	}
 
-	if (buff[0]!=0x99) {
+	switch ((buff[0]>>2)&0xf) {
+	case 6: /* primary key */
+	case 14: /* subkey */
+		break;
+	default:
 		puts("Not a supported public key packet!\n");
 		return -1;
 	}
 
+	/* to compute fingerprint, the first byte should be 0x99 */
+	buff[0] = 0x99;
 	pktlen = buff[1]*256+buff[2];
-	SHA1_Init(&ctx);
-	SHA1_Update(&ctx, buff, pktlen+3);
-	SHA1_Final(rsa_info->keyhash, &ctx);
+	SHA1(buff, pktlen+3, rsa_info->keyhash);
 
 	keypkt = (struct PGP_pubkeypkt*)(buff+3);
 
@@ -71,4 +77,48 @@ parse_pubkey(uint8_t *buff, struct RSA_pubkey *rsa_info)
 	}
 
 	return 0;
+}
+
+/* use parse_pubkey to find a primary/sub key with keyid */
+int
+find_pubkey(uint8_t *buff, int bufflen, struct RSA_pubkey *rsa_info, uint8_t *keyid)
+{
+	uint8_t tag = buff[0];
+	uint32_t length;
+	if (parse_pubkey(buff, rsa_info)==0) {
+		if (*(unsigned long long*)keyid ==
+			 *(unsigned long long*)(rsa_info->keyhash+12)) {
+			return 0;
+		} else {
+			puts("incorrect key fingerprint:");
+			for (int i=0; i<20; i++) {
+				printf("%02x ", rsa_info->keyhash[i]);
+			}
+			puts("");
+		}
+	}
+	switch (tag&3) {
+	case 0:
+		length = buff[1];
+		buff += 2+length;
+		bufflen -= 2+length;
+		break;
+	case 1:
+		length = (buff[1]<<8)|buff[2];
+		buff += 3+length;
+		bufflen -= 3+length;
+		break;
+	case 2:
+		length = (buff[1]<<24)|(buff[2]<<16)|(buff[3]<<8)|(buff[4]);
+		buff += 5+length;
+		bufflen -= 5+length;
+		break;
+	default: /* unsupported */
+		return -1;
+	}
+	if (bufflen>0) {
+		return find_pubkey(buff, bufflen, rsa_info, keyid);
+	} else {
+		return -1;
+	}
 }

@@ -17,22 +17,6 @@ main(int argc, char* argv[])
 		return 1;
 	}
 
-	fpub = fopen(argv[1], "r");
-	if (fpub==NULL) {
-		perror("Open public key file error!\n");
-		return 1;
-	}
-	len = fread(buffer, 1, 4096, fpub);
-	if (len>=4096) {
-		perror("Public key file too large.\n");
-		return 1;
-	}
-	if (parse_pubkey(buffer, &pubkey)<0) {
-		perror("Parse public key packet error!\n");
-		return 1;
-	}
-	fclose(fpub);
-
 	fsig = fopen(argv[2], "r");
 	if (fsig==NULL) {
 		perror("Open signature file error!\n");
@@ -47,7 +31,24 @@ main(int argc, char* argv[])
 		perror("Parse signature data error!\n");
 		return 1;
 	}
+	printf("issuer: %llx\n", *(long long*)sigdata.issuer);
 	fclose(fsig);
+
+	fpub = fopen(argv[1], "r");
+	if (fpub==NULL) {
+		perror("Open public key file error!\n");
+		return 1;
+	}
+	len = fread(buffer, 1, 4096, fpub);
+	if (len>=4096) {
+		perror("Public key file too large.\n");
+		return 1;
+	}
+	if (find_pubkey(buffer, len, &pubkey, sigdata.issuer)<0) {
+		perror("Parse public key packet error!\n");
+		return 1;
+	}
+	fclose(fpub);
 
 	fdata = fopen(argv[3], "r");
 	if (fdata==NULL) {
@@ -61,7 +62,10 @@ main(int argc, char* argv[])
 	buf.ioeof = c_file_buffer.ioeof;
 	buf.ioclose = c_file_buffer.ioclose;
 
-	pgpverify(&pubkey, &sigdata, &buf);
-
+	if (pgpverify(&pubkey, &sigdata, &buf)==1) {
+		puts("PGP verify success!");
+	} else {
+		puts("PGP signature bad!");
+	}
 	return 0;
 }
