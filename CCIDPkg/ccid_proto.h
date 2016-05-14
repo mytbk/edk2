@@ -10,7 +10,12 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
 
-#define EFI_CCID_PROTOCOL_GUID \
+#ifndef SAFECALLE
+#define SAFECALLE(v,e) v=e; \
+	if (EFI_ERROR(v)) {Print(L"%s failed.\n", #e); return v;}
+#endif
+
+#define EFI_CCID_PROTOCOL_GUID						\
 { \
 	 0x21b13e79, 0xfa25, 0x43e0, {0x93, 0xb4, 0x81, 0x05, 0x83, 0xdf, 0xbb, 0x65} \
 }
@@ -75,6 +80,7 @@ struct OpenPGP_Packet
 #define OPENPGP_CARDHOLDER_RELATED_DATA 0x65
 #define OPENPGP_AID 0x4f
 #define OPENPGP_PWSTATUS 0xc4
+#define OPENPGP_FINGERPRINTS 0xc5
 #define OPENPGP_URL 0x5f50
 
 typedef EFI_STATUS (EFIAPI *EFI_CCID_SEND_COMMAND)(

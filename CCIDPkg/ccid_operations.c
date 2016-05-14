@@ -1,4 +1,5 @@
 #include "ccid_proto.h"
+#include "tlv.h"
 #include <Library/MemoryAllocationLib.h>
 #include <Library/BaseMemoryLib.h>
 
@@ -222,10 +223,74 @@ Error:
 	return Status;
 }
 
-#ifndef SAFECALLE
-#define SAFECALLE(v,e) v=e; \
-	if (EFI_ERROR(v)) {Print(L"%s failed.\n", #e); return v;}
-#endif
+
+EFI_STATUS
+PGP_GetFingerprints(EFI_CCID_PROTOCOL* ccid, unsigned char sigs[])
+{
+	EFI_STATUS Status;
+	unsigned char recvbuf[1024];
+	UINTN recvlen = 1024;
+	size_t n;
+
+	SAFECALLE(Status, PGP_GetData(ccid, OPENPGP_APPLICATION_RELATED_DATA));
+	SAFECALLE(Status, RecvData(ccid, recvbuf, &recvlen));
+
+	if (recvbuf[recvlen-2]==0x90 && recvbuf[recvlen-1]==0x00) {
+		const unsigned char *fpr = find_tlv(recvbuf, recvlen-2,
+														OPENPGP_FINGERPRINTS, &n);
+		if (!fpr || n<60) {
+			Print(L"Error reading fingerprints!\n");
+			return EFI_ABORTED;
+		}
+
+		CopyMem(sigs, fpr, 60);
+		return EFI_SUCCESS;
+	} else {
+		Print(L"Get application related data failed, err=%02x%02x\n",
+				recvbuf[recvlen-2], recvbuf[recvlen-1]);
+		return EFI_ABORTED;
+	}
+}
+
+/* verify PIN:
+	return EFI_SUCCESS if PIN is correct,
+	return EFI_ABORTED if PIN is wrong,
+	otherwise there's some call error
+*/
+EFI_STATUS PGP_VerifyPW1(
+	EFI_CCID_PROTOCOL *ccid,
+	const unsigned char *pw,
+	UINTN pwlen)
+{
+	EFI_STATUS Status;
+	unsigned char recvbuf[1024];
+	UINTN recvlen = 1024;
+
+	unsigned char verifycmd[512] = {0x00, 0x20, 0x00, 0x81};
+	verifycmd[4] = pwlen;
+	CopyMem(verifycmd+5, pw, pwlen);
+
+	SAFECALLE(Status, TransferBlock(ccid, verifycmd, 5+pwlen));
+	SAFECALLE(Status, RecvData(ccid, recvbuf, &recvlen));
+
+	if (recvbuf[recvlen-2]==0x90 && recvbuf[recvlen-1]==0x00) {
+		return EFI_SUCCESS;
+	} else {
+		return EFI_ABORTED;
+	}
+}
+
+EFI_STATUS PGP_Sign(
+	EFI_CCID_PROTOCOL *ccid,
+	const unsigned char *digestinfo,
+	UINTN len_digestinfo)
+{
+	unsigned char signcmd[256] = {0x00, 0x2a, 0x9e, 0x9a};
+	signcmd[4] = len_digestinfo;
+	CopyMem(signcmd+5, digestinfo, len_digestinfo);
+	signcmd[5+len_digestinfo] = 0x00;
+	return TransferBlock(ccid, signcmd, 6+len_digestinfo);
+}
 
 EFI_STATUS
 EFIAPI
@@ -239,6 +304,7 @@ UefiMain(
 	UINTN nHandles;
 	EFI_HANDLE *controllerHandles = NULL;
 	unsigned char buffer[1024];
+	unsigned char sigs[60];
 	UINTN recvlen;
 
 	Status = gBS->LocateHandleBuffer(
@@ -313,6 +379,12 @@ UefiMain(
 		}
 		for (UINTN i=0; i<recvlen-2; i++) {
 			Print(L"%c", buffer[i]);
+		}
+		Print(L"\n");
+
+		SAFECALLE(Status, PGP_GetFingerprints(ccid, sigs));
+		for (UINTN i=0; i<20; i++) {
+			Print(L"%02x", sigs[i]);
 		}
 		Print(L"\n");
 	}
