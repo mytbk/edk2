@@ -33,3 +33,13 @@ EFI_STATUS PGP_Sign(
 	EFI_CCID_PROTOCOL *ccid,
 	const unsigned char *digestinfo,
 	UINTN len_digestinfo);
+/* PGP_GetResponse: receive the remaining data to buf
+	@input len: the request length, given in previous SW2
+	@output nextlen: the next request length
+*/
+EFI_STATUS PGP_GetResponse(
+	EFI_CCID_PROTOCOL *ccid,
+	unsigned char *buf,
+	UINTN len,
+	UINTN *nextlen
+	);

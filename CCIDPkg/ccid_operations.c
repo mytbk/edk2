@@ -291,3 +291,32 @@ EFI_STATUS PGP_Sign(
 	signcmd[5+len_digestinfo] = 0x00;
 	return TransferBlock(ccid, signcmd, 6+len_digestinfo);
 }
+
+EFI_STATUS PGP_GetResponse(
+	EFI_CCID_PROTOCOL *ccid,
+	unsigned char *buf,
+	UINTN len,
+	UINTN *nextlen
+	)
+{
+	EFI_STATUS Status;
+	unsigned char recvbuf[1024];
+	UINTN recvlen=1024;
+
+	unsigned char cmd[] = {0x00, 0xc0, 0x00, 0x00, 0x00};
+	SAFECALLE(Status, TransferBlock(ccid, cmd, 5));
+	SAFECALLE(Status, RecvData(ccid, recvbuf, &recvlen));
+
+	if (recvbuf[recvlen-2]==0x90 && recvbuf[recvlen-1]==0x00) {
+		*nextlen = 0;
+	} else if (recvbuf[recvlen-2]==0x61) {
+		*nextlen = recvbuf[recvlen-1];
+	}
+	recvlen -= 2;
+	if (recvlen!=len) {
+		AsciiPrint("Response data doesn't have the same length as the request length!\n");
+		return EFI_ABORTED;
+	}
+	CopyMem(buf, recvbuf, recvlen);
+	return EFI_SUCCESS;
+}
