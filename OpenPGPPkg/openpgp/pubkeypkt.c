@@ -1,9 +1,9 @@
 #ifdef EFIAPI
 #include <Uefi.h>
 #include <Library/UefiLib.h>
-#define puts(x) AsciiPrint(x)
 #else
 #include <stdio.h>
+#define AsciiPrint printf
 #endif
 
 #include <openssl/sha.h>
@@ -43,7 +43,7 @@ parse_pubkey(uint8_t *buff, struct RSA_pubkey *rsa_info)
 	int l;
 
 	if (rsa_info==NULL) {
-		puts("NULL pointer received!\n");
+		AsciiPrint("NULL pointer received!\n");
 		return -1;
 	}
 
@@ -52,7 +52,7 @@ parse_pubkey(uint8_t *buff, struct RSA_pubkey *rsa_info)
 	case 14: /* subkey */
 		break;
 	default:
-		puts("Not a supported public key packet!\n");
+		AsciiPrint("Not a supported public key packet!\n");
 		return -1;
 	}
 
@@ -64,17 +64,17 @@ parse_pubkey(uint8_t *buff, struct RSA_pubkey *rsa_info)
 	keypkt = (struct PGP_pubkeypkt*)(buff+3);
 
 	if (keypkt->ver!=4) {
-		puts("Not a version 4 packet!\n");
+		AsciiPrint("Not a version 4 packet!\n");
 		return -1;
 	}
 
 	l = MPI_parse(keypkt->keyvalue, &rsa_info->rsa_nlen, rsa_info->RSA_n);
 	if (l<0) {
-		puts("MPI RSA modulus n parse error!\n");
+		AsciiPrint("MPI RSA modulus n parse error!\n");
 		return -1;
 	}
 	if (MPI_parse(keypkt->keyvalue+l, &rsa_info->rsa_elen, rsa_info->RSA_e)<0) {
-		puts("MPI RSA encryption exponent e parse error!\n");
+		AsciiPrint("MPI RSA encryption exponent e parse error!\n");
 		return -1;
 	}
 
@@ -92,11 +92,11 @@ find_pubkey(uint8_t *buff, int bufflen, struct RSA_pubkey *rsa_info, uint8_t *ke
 			 *(unsigned long long*)(rsa_info->keyhash+12)) {
 			return 0;
 		} else {
-			puts("incorrect key fingerprint:");
+			AsciiPrint("incorrect key fingerprint:\n");
 			for (int i=0; i<20; i++) {
-				printf("%02x ", rsa_info->keyhash[i]);
+				AsciiPrint("%02x ", rsa_info->keyhash[i]);
 			}
-			puts("");
+			AsciiPrint("\n");
 		}
 	}
 	switch (tag&3) {
