@@ -17,11 +17,13 @@
 [Sources]
    ccid_operations.c
    tlv.c
+   ccidtest.c
 
 [Packages]
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
   CCIDPkg/ccid.dec
+  OpenPGPPkg/OpenPGPPkg.dec
 
 [LibraryClasses]
   UefiApplicationEntryPoint
@@ -31,6 +33,9 @@
 [Protocols]
   gEfiUsbIoProtocolGuid
   gEfiCcidProtocolGuid
+  gEfiDiskIoProtocolGuid
+  gEfiDevicePathToTextProtocolGuid
+  gEfiSimpleFileSystemProtocolGuid
 
 [BuildOptions]
  MSFT:DEBUG_*_*_CC_FLAGS   = /wd4201  /wd4305
