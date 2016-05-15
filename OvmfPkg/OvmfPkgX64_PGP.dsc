@@ -825,5 +825,5 @@
 !endif
 
 CCIDPkg/ccid.inf
-# CCIDPkg/ccid_oper.inf
+CCIDPkg/ccid_oper.inf
 OpenPGPPkg/testpgp.inf
