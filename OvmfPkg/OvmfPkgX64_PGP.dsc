@@ -161,6 +161,7 @@
   XenHypercallLib|OvmfPkg/Library/XenHypercallLib/XenHypercallLib.inf
 
   OpensslLib|CryptoPkg/Library/OpensslLib/OpensslLib.inf
+  OpenPGPLib|OpenPGPPkg/openpgp/OpenPGPLib.inf
 
 [LibraryClasses.common]
 !if $(SECURE_BOOT_ENABLE) == TRUE
@@ -824,5 +825,5 @@
 !endif
 
 CCIDPkg/ccid.inf
-CCIDPkg/ccid_oper.inf
+# CCIDPkg/ccid_oper.inf
 OpenPGPPkg/testpgp.inf
