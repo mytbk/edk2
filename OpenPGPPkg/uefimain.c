@@ -7,7 +7,7 @@
 #include <Library/MemoryAllocationLib.h>
 #include <Protocol/SimpleFileSystem.h>
 #include <Guid/FileInfo.h>
-#include "cryptodata.h"
+#include <openpgp/cryptodata.h>
 
 EFI_STATUS
 GetFileIo( EFI_FILE_PROTOCOL** Root)

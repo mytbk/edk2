@@ -1,0 +1,29 @@
+[Defines]
+  INF_VERSION                    = 0x00010006
+  BASE_NAME                      = OpenPGPLib
+  FILE_GUID                      = 6c10934d-e161-4670-a8bd-eec545f1fa59
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = OpenPGPLib
+
+[Sources]
+   cryptodata.h
+   iobuffer.h
+   pubkeypkt.c
+   sigpkt.c
+   verify.c
+   uefi_file_buffer.c
+   opensslsupport.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  CryptoPkg/CryptoPkg.dec
+  OpenPGPPkg/OpenPGPPkg.dec
+
+[LibraryClasses]
+  OpensslLib
+
+[Protocols]
+
+[Guids]
+   gEfiFileInfoGuid

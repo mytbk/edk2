@@ -7,11 +7,6 @@
   ENTRY_POINT                    = UefiMain
 [Sources]
    uefimain.c
-   pubkeypkt.c
-   sigpkt.c
-   verify.c
-   uefi_file_buffer.c
-   opensslsupport.c
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -22,6 +17,7 @@
   UefiDriverEntryPoint
   UefiLib
   OpensslLib
+  OpenPGPLib
 
 [Protocols]
   gEfiDiskIoProtocolGuid

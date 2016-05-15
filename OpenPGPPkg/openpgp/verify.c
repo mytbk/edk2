@@ -1,4 +1,5 @@
 #ifdef EFIAPI
+#include <Uefi.h>
 #include <Library/UefiLib.h>
 #else
 #include <stdio.h>

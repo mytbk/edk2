@@ -1,13 +1,14 @@
-#include <openssl/sha.h>
-#include <string.h>
-#include "cryptodata.h"
-
 #ifdef EFIAPI
+#include <Uefi.h>
 #include <Library/UefiLib.h>
 #define puts(x) AsciiPrint(x)
 #else
 #include <stdio.h>
 #endif
+
+#include <openssl/sha.h>
+#include <string.h>
+#include "cryptodata.h"
 
 struct PGP_pubkeypkt {
 	uint8_t ver; /* must be 4 */
