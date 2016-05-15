@@ -12,7 +12,7 @@
 
 #ifndef SAFECALLE
 #define SAFECALLE(v,e) v=e; \
-	if (EFI_ERROR(v)) {Print(L"%s failed.\n", #e); return v;}
+	if (EFI_ERROR(v)) {AsciiPrint("%s failed.\n", #e); return v;}
 #endif
 
 #define EFI_CCID_PROTOCOL_GUID						\

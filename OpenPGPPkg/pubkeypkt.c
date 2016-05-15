@@ -3,6 +3,7 @@
 #include "cryptodata.h"
 
 #ifdef EFIAPI
+#include <Library/UefiLib.h>
 #define puts(x) AsciiPrint(x)
 #else
 #include <stdio.h>
