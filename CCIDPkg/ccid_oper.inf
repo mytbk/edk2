@@ -29,6 +29,7 @@
   UefiApplicationEntryPoint
   UefiLib
   UefiBootServicesTableLib
+  OpenPGPLib
 
 [Protocols]
   gEfiUsbIoProtocolGuid
