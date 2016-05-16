@@ -172,18 +172,23 @@ UefiMain(
 			readlen = 1024;
 			SAFECALLE(Status, RecvData(ccid, sigmsgbuf, &readlen));
 		} while (readlen==0);
-		sigbuflen += readlen-2;
-		if (sigmsgbuf[readlen+1]==0x90 && sigmsgbuf[readlen+2]==0x00) {
+		sigbuflen = readlen-2;
+		if (sigmsgbuf[sigbuflen]==0x90 && sigmsgbuf[sigbuflen+1]==0x00) {
 			AsciiPrint("Signature received.\n");
-		} else if (sigmsgbuf[readlen+1]==0x61){
-			UINTN requestlen = sigmsgbuf[readlen+2];
+		} else if (sigmsgbuf[sigbuflen]==0x61){
+			UINTN requestlen = sigmsgbuf[sigbuflen+1];
 			UINTN nextlen = requestlen;
 			while (nextlen!=0) {
+				AsciiPrint("To receive %d bytes...", requestlen);
 				SAFECALLE(Status, PGP_GetResponse(ccid, sigmsgbuf+sigbuflen, requestlen, &nextlen));
 				sigbuflen += requestlen;
 				requestlen = nextlen;
 			}
+		} else {
+			AsciiPrint("Receive signature error!\n");
+			return EFI_ABORTED;
 		}
+		AsciiPrint("Signature length = %d\n", sigbuflen);
 		if (sigverify(sigmsgbuf, sigbuflen, HASH_SHA256, sha256digestinfo+19, &rsakey)==1) {
 			AsciiPrint("verify signature success!\n");
 		} else {
