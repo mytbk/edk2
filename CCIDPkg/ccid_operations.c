@@ -304,6 +304,7 @@ EFI_STATUS PGP_GetResponse(
 	UINTN recvlen=1024;
 
 	unsigned char cmd[] = {0x00, 0xc0, 0x00, 0x00, 0x00};
+	cmd[4] = len;
 	SAFECALLE(Status, TransferBlock(ccid, cmd, 5));
 	SAFECALLE(Status, RecvData(ccid, recvbuf, &recvlen));
 
