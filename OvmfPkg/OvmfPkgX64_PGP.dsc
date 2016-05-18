@@ -826,4 +826,5 @@
 
 CCIDPkg/ccid.inf
 CCIDPkg/ccid_oper.inf
+CCIDPkg/ccidboot.inf
 OpenPGPPkg/testpgp.inf

@@ -1,0 +1,45 @@
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = ccidboot
+  FILE_GUID                      = fd3b37b8-fbd5-4c79-879f-3708db3035e8
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = UefiMain
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+   ccid_operations.c
+   tlv.c
+   ccidboot.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  CCIDPkg/ccid.dec
+  CryptoPkg/CryptoPkg.dec
+  OpenPGPPkg/OpenPGPPkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiLib
+  UefiBootServicesTableLib
+  OpensslLib
+  OpenPGPLib
+
+[Protocols]
+  gEfiUsbIoProtocolGuid
+  gEfiCcidProtocolGuid
+  gEfiDiskIoProtocolGuid
+  gEfiDevicePathToTextProtocolGuid
+  gEfiSimpleFileSystemProtocolGuid
+
+[BuildOptions]
+ MSFT:DEBUG_*_*_CC_FLAGS   = /wd4201  /wd4305
+ MSFT:RELEASE_*_*_CC_FLAGS = /wd4201
