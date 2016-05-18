@@ -7,15 +7,19 @@
 #include <Guid/FileInfo.h>
 #include <openssl/sha.h>
 
+#define ELINE -2
+#define EFILE -1
+
+#ifdef DEBUGPRN
+#define DebugPrint Print
+#else
+#define DebugPrint(a,...) ;
+#endif
+
 #define TESTPATTERN0 "abcd1234" \
 	"abcd1234" \
 	"deadbeef" \
 	"deadbeef"
-
-#define TESTPATTERN1 "\x00\x00\x00\x00\x00\x00\x00\x00" \
-	"\x00\x00\x00\x00\x00\x00\x00\x00" \
-	"\x00\x00\x00\x00\x00\x00\x00\x00" \
-	"\x00\x00\x00\x00\x00\x00\x00\x00"
 
 static unsigned char *sha256digestinfo = (unsigned char*)
 	"\x30\x31"
@@ -158,9 +162,206 @@ verify_signed_hashlist()
 	}
 }
 
-int verify_hashes()
+static inline int
+digitval(char a)
 {
+	if (a>='0' && a<='9') {
+		return a-'0';
+	}
+	if (a>='a' && a<='f') {
+		return a-'a'+10;
+	}
+	if (a>='A' && a<='F') {
+		return a-'A'+10;
+	}
+	return -1;
+}
+
+/* read from a SHA256SUM file, format:
+	<hash>  <filename>
+*/
+static int
+read_name_hash_line(EFI_FILE_PROTOCOL *handle, CHAR16 *fn, uint8_t *digest)
+{
+	EFI_STATUS Status;
+	UINTN readlen;
+	char c;
+	int val;
+
+	/* read hash */
+	for (int i=0; i<32; i++) {
+		readlen = 1;
+		Status = handle->Read(handle, &readlen, &c);
+		if (EFI_ERROR(Status) || readlen==0) {
+			return EFILE;
+		}
+		if (c=='\n') {
+			return ELINE;
+		}
+		val = digitval(c);
+		if (val==-1) {
+			return ELINE;
+		}
+		digest[i] = val*16;
+
+		readlen = 1;
+		Status = handle->Read(handle, &readlen, &c);
+		if (EFI_ERROR(Status) || readlen==0) {
+			return EFILE;
+		}
+		if (c=='\n') {
+			return ELINE;
+		}
+		val = digitval(c);
+		if (val==-1) {
+			return ELINE;
+		}
+		digest[i] += val;
+	}
+
+	DebugPrint(L"Hash read finished!\n");
+
+	/* skip all spaces */
+	do {
+		readlen = 1;
+		Status = handle->Read(handle, &readlen, &c);
+		if (EFI_ERROR(Status) || readlen==0) {
+			return EFILE;
+		}
+		if (c=='\n') {
+			return ELINE;
+		}
+	} while(c==' ');
+
+	DebugPrint(L"Spaces skipped.\n");
+
+	if (c=='/') {
+		*fn = '\\';
+	} else {
+		*fn = c;
+	}
+	fn++;
+	while (1) {
+		readlen = 1;
+		Status = handle->Read(handle, &readlen, &c);
+		if (EFI_ERROR(Status) || readlen==0) {
+			return EFILE;
+		}
+		if (c=='\n') {
+			*fn = 0;
+			return 0;
+		}
+		if (c!=' ') {
+			if (c=='/') {
+				*fn = '\\';
+			} else {
+				*fn = c;
+			}
+			fn++;
+		} else {
+			*fn = 0;
+			break;
+		}
+	}
+
+	/* read the remaining of line */
+	while (1) {
+		readlen = 1;
+		Status = handle->Read(handle, &readlen, &c);
+		if (EFI_ERROR(Status) || readlen==0) {
+			return EFILE;
+		}
+		if (c=='\n') {
+			return 0;
+		}
+	}
+}
+
+/* hashFile: wrapper for hashing a file
+	@input fileHandle: an opened file handle
+	@output digest: the calculated digest
+*/
+
+static EFI_STATUS
+hashFile(EFI_FILE_PROTOCOL *fileHandle, unsigned char *digest)
+{
+	char buffer[32];
+	UINTN readlen;
+	SHA256_CTX ctx;
+	EFI_STATUS Status;
+
+	SHA256_Init(&ctx);
+	while (1) {
+		readlen = 32;
+		Status = fileHandle->Read(fileHandle, &readlen, buffer);
+		if (EFI_ERROR(Status)) {
+			Print(L"Read file error!\n");
+			return Status;
+		}
+		if (readlen==0) {
+			break;
+		}
+		SHA256_Update(&ctx, (const void*)buffer, readlen);
+	}
+	SHA256_Final(digest, &ctx);
+	return EFI_SUCCESS;
+}
+
+static int
+sha256cmp(const uint8_t *a, const uint8_t *b)
+{
+	for (int i=0; i<32; i++) {
+		if (a[i]!=b[i]) {
+			return a[i]-b[i];
+		}
+	}
 	return 0;
+}
+
+EFI_STATUS
+verify_hashes()
+{
+	EFI_STATUS Status;
+	CHAR16 u16fn[1024];
+	EFI_FILE_PROTOCOL *fileHandle;
+	EFI_FILE_PROTOCOL *vfileHandle;
+	unsigned char sha256digest[32];
+	unsigned char sha256toverify[32];
+	int err;
+
+	SAFECALLE(Status, Root->Open(Root, &fileHandle, hashlist, EFI_FILE_MODE_READ, 0));
+
+	while (1) {
+		/* read each line of the file for filename and hash */
+		err = read_name_hash_line(fileHandle, u16fn, sha256toverify);
+		if (err==EFILE) {
+			DebugPrint(L"End of file or error!\n");
+			break;
+		}
+		if (err==ELINE) {
+			DebugPrint(L"Line error occured.\n");
+			continue;
+		}
+		if (err==0) {
+			/* read the file (u16fn) and check the hash */
+			DebugPrint(L"Opening %s\n", u16fn);
+			Status = Root->Open(Root, &vfileHandle, u16fn, EFI_FILE_MODE_READ, 0);
+			if (EFI_ERROR(Status)) {
+				DebugPrint(L"Open file %s error!\n", u16fn);
+				return EFI_ABORTED;
+			}
+			SAFECALLE(Status, hashFile(vfileHandle, sha256digest));
+			vfileHandle->Close(vfileHandle);
+			if (sha256cmp(sha256toverify, sha256digest)==0) {
+				Print(L"File %s OK.\n", u16fn);
+			} else {
+				Print(L"File %s error.\n", u16fn);
+				return EFI_ABORTED;
+			}
+		}
+	}
+	fileHandle->Close(fileHandle);
+	return EFI_SUCCESS;
 }
 
 EFI_STATUS
@@ -319,5 +520,10 @@ UefiMain(
 		AsciiPrint("verify error!\n");
 	}
 
+	if (verify_hashes()==EFI_SUCCESS) {
+		AsciiPrint("verify hashes success!\n");
+	} else {
+		AsciiPrint("verify hashes failed!\n");
+	}
 	return EFI_SUCCESS;
 }
