@@ -23,12 +23,14 @@
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
   CCIDPkg/ccid.dec
+  CryptoPkg/CryptoPkg.dec
   OpenPGPPkg/OpenPGPPkg.dec
 
 [LibraryClasses]
   UefiApplicationEntryPoint
   UefiLib
   UefiBootServicesTableLib
+  OpensslLib
   OpenPGPLib
 
 [Protocols]

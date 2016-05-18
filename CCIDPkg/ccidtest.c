@@ -1,8 +1,11 @@
 #include "ccid_oper.h"
 #include <openpgp/cryptodata.h>
 #include <Library/UefiApplicationEntryPoint.h>
+#include <Library/UefiRuntimeLib.h>
 #include <Protocol/SimpleFileSystem.h>
+#include <Protocol/SimpleTextInEx.h>
 #include <Guid/FileInfo.h>
+#include <openssl/sha.h>
 
 #define TESTPATTERN0 "abcd1234" \
 	"abcd1234" \
@@ -14,7 +17,7 @@
 	"\x00\x00\x00\x00\x00\x00\x00\x00" \
 	"\x00\x00\x00\x00\x00\x00\x00\x00"
 
-const unsigned char *sha256digestinfo = (unsigned char*)
+static unsigned char *sha256digestinfo = (unsigned char*)
 	"\x30\x31"
 	"\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01\x05\x00"
 	"\x04\x20"
@@ -59,6 +62,26 @@ GetFileIo( EFI_FILE_PROTOCOL** Root)
 	 return Status;
 }
 
+void
+GetString(unsigned char *str, UINTN *len)
+{
+	EFI_SIMPLE_TEXT_INPUT_PROTOCOL *conin = gST->ConIn;
+	EFI_INPUT_KEY key = {.ScanCode=0, .UnicodeChar=0};
+	*len = 0;
+
+	while ((char)key.UnicodeChar!='\n' && (char)key.UnicodeChar!='\r') {
+		EFI_STATUS Status = conin->ReadKeyStroke(conin, &key);
+		if (Status==EFI_SUCCESS) {
+			*str = key.UnicodeChar;
+			*len = *len+1;
+			str++;
+		} else if (Status==EFI_DEVICE_ERROR) {
+			return;
+		}
+	}
+	*len = *len-1; // remove the carry/linefeed
+}
+
 EFI_STATUS
 EFIAPI
 UefiMain(
@@ -72,6 +95,8 @@ UefiMain(
 	EFI_HANDLE *controllerHandles = NULL;
 	unsigned char buffer[1024];
 	unsigned char sigs[60];
+	unsigned char pw[256];
+	UINTN pwlen;
 	UINTN recvlen;
 
 	Status = gBS->LocateHandleBuffer(
@@ -173,7 +198,16 @@ UefiMain(
 			return EFI_ABORTED;
 		}
 
-		SAFECALLE(Status, PGP_VerifyPW1(ccid, (const unsigned char*)"testOnly", 8));
+		EFI_TIME curTime;
+		gRT->GetTime(&curTime, NULL);
+		SHA256((const unsigned char*)&curTime, sizeof(curTime), sha256digestinfo+19);
+		GetString(pw, &pwlen);
+		SAFECALLE(Status, PGP_VerifyPW1(ccid, pw, pwlen));
+		AsciiPrint("To sign:");
+		for (int i=0; i<32; i++) {
+			AsciiPrint("%02x ", sha256digestinfo[19+i]);
+		}
+		AsciiPrint("\n");
 		SAFECALLE(Status, PGP_Sign(ccid, sha256digestinfo, SHA256_DIGEST_INFO_LEN));
 
 		do {
