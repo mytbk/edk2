@@ -378,6 +378,8 @@ INF  MdeModulePkg/Universal/FaultTolerantWriteDxe/FaultTolerantWriteDxe.inf
 INF  MdeModulePkg/Universal/Variable/RuntimeDxe/VariableRuntimeDxe.inf
 !endif
 
+INF CCIDPkg/ccid.inf
+
 ################################################################################
 
 [FV.FVMAIN_COMPACT]
