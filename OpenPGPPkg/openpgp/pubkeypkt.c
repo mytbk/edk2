@@ -83,7 +83,7 @@ parse_pubkey(uint8_t *buff, struct RSA_pubkey *rsa_info)
 
 /* use parse_pubkey to find a primary/sub key with keyid */
 int
-find_pubkey(uint8_t *buff, int bufflen, struct RSA_pubkey *rsa_info, uint8_t *keyid)
+find_pubkey(uint8_t *buff, int bufflen, struct RSA_pubkey *rsa_info, const uint8_t *keyid)
 {
 	uint8_t tag = buff[0];
 	uint32_t length;

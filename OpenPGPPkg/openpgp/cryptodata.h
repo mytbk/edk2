@@ -38,7 +38,7 @@ enum HashAlgo {
 };
 
 int parse_pubkey(uint8_t *buff, struct RSA_pubkey *rsa_info);
-int find_pubkey(uint8_t *buff, int bufflen, struct RSA_pubkey *rsa_info, uint8_t *keyid);
+int find_pubkey(uint8_t *buff, int bufflen, struct RSA_pubkey *rsa_info, const uint8_t *keyid);
 int parse_pgpdata(uint8_t *buffer, struct parse_data *pgpdata);
 /* verify RSA signature */
 int sigverify(
