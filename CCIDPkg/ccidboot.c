@@ -47,6 +47,7 @@ static unsigned char sigmsgbuf[1024];
 static unsigned int sigbuflen=0;
 static UINTN readlen=0;
 static EFI_FILE_PROTOCOL *Root;
+static EFI_EVENT readytoboot;
 
 static void
 targetu16fn(CHAR16* fn)
@@ -61,18 +62,22 @@ targetu16fn(CHAR16* fn)
 static EFI_STATUS
 GetFileIo( EFI_FILE_PROTOCOL** Root)
 {
-	 EFI_STATUS  Status = 0;
-	 EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *SimpleFileSystem;
-	 Status = gBS->LocateProtocol(
-		 &gEfiSimpleFileSystemProtocolGuid,
-		 NULL,
-		 (VOID**)&SimpleFileSystem
-		 );
-	 if (EFI_ERROR(Status)) {
-		 return Status;
-	 }
-	 Status = SimpleFileSystem->OpenVolume(SimpleFileSystem, Root);
-	 return Status;
+	EFI_STATUS Status = 0;
+	EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *SimpleFileSystem;
+	Status = gBS->LocateProtocol(
+		&gEfiSimpleFileSystemProtocolGuid,
+		NULL,
+		(VOID**)&SimpleFileSystem
+		);
+	if (EFI_ERROR(Status)) {
+		AsciiPrint("EFI system partition not found!\n");
+		return Status;
+	}
+	Status = SimpleFileSystem->OpenVolume(SimpleFileSystem, Root);
+	if (EFI_ERROR(Status)) {
+		AsciiPrint("Open EFI system partition failed, Status=%d\n", Status);
+	}
+	return Status;
 }
 
 void
@@ -490,19 +495,23 @@ setkey_card(EFI_CCID_PROTOCOL *ccid)
 	}
 }
 
-EFI_STATUS
-EFIAPI
-UefiMain(
-	IN EFI_HANDLE ImageHandle,
-	IN EFI_SYSTEM_TABLE *SystemTable
+static VOID EFIAPI
+readyToBootEvt(
+	IN EFI_EVENT Event,
+	IN VOID *Context
 	)
 {
-	EFI_CCID_PROTOCOL *ccid;
 	EFI_STATUS Status;
+	EFI_CCID_PROTOCOL *ccid;
 	UINTN nHandles=0;
 	EFI_HANDLE *controllerHandles = NULL;
 
-	SAFECALLE(Status, GetFileIo(&Root));
+	AsciiPrint("Now in readyToBootEvt notify function!\n");
+	Status = GetFileIo(&Root);
+	if (EFI_ERROR(Status)) {
+		AsciiPrint("Cannot open EFI system partition!\n");
+		return;
+	}
 
 	Status = gBS->LocateHandleBuffer(
 		ByProtocol,
@@ -551,5 +560,27 @@ UefiMain(
 		AsciiPrint("verify hashes failed!\n");
 		while (1);
 	}
+}
+
+EFI_STATUS
+EFIAPI
+UefiMain(
+	IN EFI_HANDLE ImageHandle,
+	IN EFI_SYSTEM_TABLE *SystemTable
+	)
+{
+	/* we just create an event in ReadyToBoot group,
+		run the main function in notify funciton
+	*/
+	EFI_STATUS Status;
+
+	SAFECALLE(Status, gBS->CreateEventEx(
+					 EVT_NOTIFY_SIGNAL,
+					 TPL_CALLBACK,
+					 readyToBootEvt,
+					 NULL,
+					 &gEfiEventReadyToBootGuid,
+					 &readytoboot
+					 ));
 	return EFI_SUCCESS;
 }
