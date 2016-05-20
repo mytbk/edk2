@@ -379,6 +379,7 @@ INF  MdeModulePkg/Universal/Variable/RuntimeDxe/VariableRuntimeDxe.inf
 !endif
 
 INF CCIDPkg/ccid.inf
+INF CCIDPkg/ccidboot.inf
 
 ################################################################################
 
