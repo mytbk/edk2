@@ -4,7 +4,7 @@
   INF_VERSION                    = 0x00010005
   BASE_NAME                      = ccidboot
   FILE_GUID                      = fd3b37b8-fbd5-4c79-879f-3708db3035e8
-  MODULE_TYPE                    = UEFI_APPLICATION
+  MODULE_TYPE                    = DXE_DRIVER
   VERSION_STRING                 = 1.0
   ENTRY_POINT                    = UefiMain
 
@@ -27,7 +27,7 @@
   OpenPGPPkg/OpenPGPPkg.dec
 
 [LibraryClasses]
-  UefiApplicationEntryPoint
+  UefiDriverEntryPoint
   UefiLib
   UefiBootServicesTableLib
   OpensslLib
@@ -39,6 +39,11 @@
   gEfiDiskIoProtocolGuid
   gEfiDevicePathToTextProtocolGuid
   gEfiSimpleFileSystemProtocolGuid
+
+[Depex]
+   gEfiSimpleTextOutProtocolGuid AND
+   gEfiSimpleFileSystemProtocolGuid AND
+   gEfiSimpleTextInputExProtocolGuid
 
 [BuildOptions]
  MSFT:DEBUG_*_*_CC_FLAGS   = /wd4201  /wd4305

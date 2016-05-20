@@ -30,7 +30,13 @@ static unsigned char *sha256digestinfo = (unsigned char*)
 #define SHA256_DIGEST_INFO_LEN 51
 
 static const char *charmap = "0123456789abcdef";
-static unsigned char *keyid = NULL;
+static const unsigned char *keyid = NULL;
+static const unsigned char defaultfpr[] =
+{0x9F, 0x42, 0x7E, 0xF3,
+ 0x09, 0xDE, 0x98, 0x56,
+ 0xAA, 0xB2, 0x09, 0xBB,
+ 0x99, 0xE7, 0xBD, 0x5A,
+ 0xD0, 0x51, 0xC1, 0x7B};
 static CHAR16* pubkeyfile = L"xxxxxxxx.gpg";
 static CHAR16* hashlist = L"xxxxxxxx.sha256sums";
 static CHAR16* hashlistsig = L"xxxxxxxx.sha256sums.sig";
@@ -40,7 +46,7 @@ static struct RSA_pubkey rsakey;
 static unsigned char sigmsgbuf[1024];
 static unsigned int sigbuflen=0;
 static UINTN readlen=0;
-EFI_FILE_PROTOCOL *Root;
+static EFI_FILE_PROTOCOL *Root;
 
 static void
 targetu16fn(CHAR16* fn)
@@ -103,7 +109,25 @@ havekey(unsigned char fpr[])
 EFI_STATUS
 setkey_nocard()
 {
-	keyid = NULL;
+	EFI_FILE_PROTOCOL *pubFileHandle;
+	EFI_STATUS Status;
+
+	keyid = defaultfpr+16;
+	targetu16fn(pubkeyfile);
+	targetu16fn(hashlistsig);
+	targetu16fn(hashlist);
+
+	pubkeybuflen = sizeof(pubkeydata);
+	SAFECALLE(Status, Root->Open(Root, &pubFileHandle, pubkeyfile, EFI_FILE_MODE_READ, 0));
+	SAFECALLE(Status, pubFileHandle->Read(pubFileHandle, &pubkeybuflen, pubkeydata));
+	SAFECALLE(Status, pubFileHandle->Close(pubFileHandle));
+	AsciiPrint("%d bytes read from public key file.\n", (int)pubkeybuflen);
+
+	if (find_pubkey(pubkeydata, pubkeybuflen, &rsakey, defaultfpr+12)!=0) {
+		AsciiPrint("Cannot find the public key of the OpenPGP card.\n");
+		keyid = NULL;
+		return EFI_ABORTED;
+	}
 	return EFI_SUCCESS;
 }
 
@@ -490,19 +514,19 @@ UefiMain(
 	if (EFI_ERROR(Status) || nHandles==0) {
 		Print(L"Fail to locate CCID protocol.\n");
 		setkey_nocard();
-	}
-
-	Status = gBS->HandleProtocol(
-		controllerHandles[0],
-		&gEfiCcidProtocolGuid,
-		(VOID**)&ccid
-		);
-	if (EFI_ERROR(Status)) {
-		Print(L"handle protocol failure, %d\n", Status);
-		setkey_nocard();
 	} else {
-		if (EFI_ERROR(setkey_card(ccid))) {
+		Status = gBS->HandleProtocol(
+			controllerHandles[0],
+			&gEfiCcidProtocolGuid,
+			(VOID**)&ccid
+			);
+		if (EFI_ERROR(Status)) {
+			Print(L"handle protocol failure, %d\n", Status);
 			setkey_nocard();
+		} else {
+			if (EFI_ERROR(setkey_card(ccid))) {
+				setkey_nocard();
+			}
 		}
 	}
 
@@ -518,12 +542,14 @@ UefiMain(
 		AsciiPrint("verify signed hashlist success!\n");
 	} else {
 		AsciiPrint("verify error!\n");
+		while (1);
 	}
 
 	if (verify_hashes()==EFI_SUCCESS) {
 		AsciiPrint("verify hashes success!\n");
 	} else {
 		AsciiPrint("verify hashes failed!\n");
+		while (1);
 	}
 	return EFI_SUCCESS;
 }
