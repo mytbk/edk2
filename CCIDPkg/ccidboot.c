@@ -5,6 +5,7 @@
 #include <Protocol/SimpleFileSystem.h>
 #include <Protocol/SimpleTextInEx.h>
 #include <Guid/FileInfo.h>
+#include <Guid/EventGroup.h>
 #include <openssl/sha.h>
 
 #define ELINE -2
