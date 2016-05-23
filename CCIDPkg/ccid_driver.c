@@ -57,6 +57,8 @@ typedef struct {
 	UINTN Signature;
 	EFI_CCID_PROTOCOL ccid_proto;
 	EFI_USB_IO_PROTOCOL *usbio;
+	UINT8 inEndpoint;
+	UINT8 outEndpoint;
 	unsigned char seqNo;
 } CCID_PRIVATE_DATA;
 
@@ -87,6 +89,8 @@ CCID_PRIVATE_DATA gCCIDPrivateDataTemplate = {
 		CCIDRecv,
 	},
 	NULL,
+	0x82,
+	0x02,
 	0
 };
 
@@ -161,7 +165,10 @@ CCIDDriverBindingStart (
 	EFI_STATUS Status;
 	EFI_USB_IO_PROTOCOL *usbio;
 	CCID_PRIVATE_DATA *Private;
-
+	EFI_USB_INTERFACE_DESCRIPTOR interface;
+	EFI_USB_ENDPOINT_DESCRIPTOR endpoint;
+	UINTN Index;
+	
 	Print(L"CCID driver bound to a controller handle.\n");
 
 	Status = gBS->OpenProtocol(
@@ -184,6 +191,20 @@ CCIDDriverBindingStart (
 	}
 	Private->usbio = usbio;
 
+	SAFECALLE(Status, usbio->UsbGetInterfaceDescriptor(usbio, &interface));
+	for (Index=0; Index<interface.NumEndpoints; Index++) {
+		Status = usbio->UsbGetEndpointDescriptor(usbio, Index, &endpoint);
+		if (!EFI_ERROR(Status)) {
+			if ((endpoint.Attributes & 0x3)==2) { /* Bulk endpoint */
+				if ((endpoint.EndpointAddress&0x80)) {
+					/* in endpoint */
+					Private->inEndpoint = endpoint.EndpointAddress;
+				} else {
+					Private->outEndpoint = endpoint.EndpointAddress;
+				}
+			}
+		}
+	}
 	Status = gBS->InstallProtocolInterface(
 		&ControllerHandle,
 		&gEfiCcidProtocolGuid,
@@ -256,7 +277,7 @@ CCIDSend(EFI_CCID_PROTOCOL *This,
 	priv->seqNo++;
 	Status = priv->usbio->UsbBulkTransfer(
 		priv->usbio,
-		0x02, /* FIXME: only endpoint 0x02 is supported */
+		priv->outEndpoint,
 		pkt,
 		&xferlen,
 		0,
@@ -279,7 +300,7 @@ CCIDRecv(EFI_CCID_PROTOCOL *This,
 
 	Status = priv->usbio->UsbBulkTransfer(
 		priv->usbio,
-		0x82, /* FIXME: only endpoint 0x82 is supported */
+		priv->inEndpoint,
 		buffer,
 		len,
 		0,
