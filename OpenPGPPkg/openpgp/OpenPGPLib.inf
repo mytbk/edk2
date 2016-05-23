@@ -27,3 +27,7 @@
 
 [Guids]
    gEfiFileInfoGuid
+
+[BuildOptions]
+  GCC:*_*_IA32_CC_FLAGS     = -std=gnu99
+  GCC:*_*_X64_CC_FLAGS      = -std=gnu99

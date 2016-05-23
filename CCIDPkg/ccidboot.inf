@@ -46,5 +46,7 @@
    gEfiSimpleTextInputExProtocolGuid
 
 [BuildOptions]
+ GCC:*_*_IA32_CC_FLAGS     = -std=gnu99
+ GCC:*_*_X64_CC_FLAGS      = -std=gnu99
  MSFT:DEBUG_*_*_CC_FLAGS   = /wd4201  /wd4305
  MSFT:RELEASE_*_*_CC_FLAGS = /wd4201
