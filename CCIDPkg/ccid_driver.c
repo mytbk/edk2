@@ -89,8 +89,8 @@ CCID_PRIVATE_DATA gCCIDPrivateDataTemplate = {
 		CCIDRecv,
 	},
 	NULL,
-	0x82,
-	0x02,
+	0xff,
+	0xff,
 	0
 };
 
@@ -168,7 +168,7 @@ CCIDDriverBindingStart (
 	EFI_USB_INTERFACE_DESCRIPTOR interface;
 	EFI_USB_ENDPOINT_DESCRIPTOR endpoint;
 	UINTN Index;
-	
+
 	Print(L"CCID driver bound to a controller handle.\n");
 
 	Status = gBS->OpenProtocol(
@@ -180,6 +180,7 @@ CCIDDriverBindingStart (
 		EFI_OPEN_PROTOCOL_BY_DRIVER
 		);
 	if (EFI_ERROR(Status)) {
+		AsciiErrorPrint("driver binding error, status = %d\n", Status);
 		return Status;
 	}
 
@@ -194,17 +195,25 @@ CCIDDriverBindingStart (
 	SAFECALLE(Status, usbio->UsbGetInterfaceDescriptor(usbio, &interface));
 	for (Index=0; Index<interface.NumEndpoints; Index++) {
 		Status = usbio->UsbGetEndpointDescriptor(usbio, Index, &endpoint);
-		if (!EFI_ERROR(Status)) {
-			if ((endpoint.Attributes & 0x3)==2) { /* Bulk endpoint */
-				if ((endpoint.EndpointAddress&0x80)) {
-					/* in endpoint */
-					Private->inEndpoint = endpoint.EndpointAddress;
-				} else {
-					Private->outEndpoint = endpoint.EndpointAddress;
-				}
-			}
+
+		if (EFI_ERROR (Status) || !USB_IS_BULK_ENDPOINT (endpoint.Attributes)) {
+			continue;
+		}
+
+		if (USB_IS_IN_ENDPOINT(endpoint.EndpointAddress)) {
+			Private->inEndpoint = endpoint.EndpointAddress;
+		}
+
+		if (USB_IS_OUT_ENDPOINT(endpoint.EndpointAddress)) {
+			Private->outEndpoint = endpoint.EndpointAddress;
 		}
 	}
+
+	if (Private->inEndpoint==0xff || Private->outEndpoint==0xff) {
+		AsciiErrorPrint("Error finding endpoint address!\n");
+		return EFI_UNSUPPORTED;
+	}
+
 	Status = gBS->InstallProtocolInterface(
 		&ControllerHandle,
 		&gEfiCcidProtocolGuid,
@@ -223,7 +232,6 @@ CCIDDriverBindingStart (
 			);
 	}
    return EFI_SUCCESS;
-
 }
 
 /**
@@ -280,10 +288,11 @@ CCIDSend(EFI_CCID_PROTOCOL *This,
 		priv->outEndpoint,
 		pkt,
 		&xferlen,
-		0,
+		CCID_TIMEOUT,
 		&err);
 	if (EFI_ERROR(Status)) {
-		Print(L"Error %d in CCIDSend!\n", err);
+		AsciiErrorPrint("Error %d in CCIDSend with bulk transfer, Status = %d!\n",
+							 err, Status);
 	}
 	FreePool(pkt);
 
@@ -303,11 +312,11 @@ CCIDRecv(EFI_CCID_PROTOCOL *This,
 		priv->inEndpoint,
 		buffer,
 		len,
-		0,
+		CCID_TIMEOUT,
 		&err
 		);
 	if (EFI_ERROR(Status)) {
-		Print(L"Error in CCIDRecv, Status=%d, err=%d!\n", Status, err);
+		ErrorPrint(L"Error in CCIDRecv, Status=%d, err=%d!\n", Status, err);
 	}
 	return Status;
 }

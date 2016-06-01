@@ -10,6 +10,13 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
 
+#define USB_IS_IN_ENDPOINT(EndPointAddr)      (((EndPointAddr) & BIT7) == BIT7)
+#define USB_IS_OUT_ENDPOINT(EndPointAddr)     (((EndPointAddr) & BIT7) == 0)
+#define USB_IS_BULK_ENDPOINT(Attribute)       (((Attribute) & (BIT0 | BIT1)) == USB_ENDPOINT_BULK)
+#define USB_IS_INTERRUPT_ENDPOINT(Attribute)  (((Attribute) & (BIT0 | BIT1)) == USB_ENDPOINT_INTERRUPT)
+#define USB_IS_ERROR(Result, Error)           (((Result) & (Error)) != 0)
+#define CCID_TIMEOUT 10000
+
 #ifndef SAFECALLE
 #define SAFECALLE(v,e) v=e; \
 	if (EFI_ERROR(v)) {AsciiErrorPrint("%s failed %d.\n", #e, v); return v;}
