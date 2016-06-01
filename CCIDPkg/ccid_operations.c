@@ -17,7 +17,7 @@ GetSlotStatus(EFI_CCID_PROTOCOL *ccid)
 		0,
 		NULL, 0);
 	if (EFI_ERROR(Status)) {
-		Print(L"GetSlotStatus: CCID Send failure!\n");
+		AsciiErrorPrint("GetSlotStatus: CCID Send failure!\n");
 		return Status;
 	}
 

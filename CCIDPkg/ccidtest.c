@@ -4,6 +4,8 @@
 #include <Library/UefiRuntimeLib.h>
 #include <Protocol/SimpleFileSystem.h>
 #include <Protocol/SimpleTextInEx.h>
+#include <Protocol/UsbIo.h>
+#include <Library/UefiUsbLib.h>
 #include <Guid/FileInfo.h>
 #include <openssl/sha.h>
 
@@ -122,9 +124,57 @@ UefiMain(
 			Print(L"handle protocol failure, %d\n", Status);
 			return Status;
 		}
+
+		EFI_USB_IO_PROTOCOL *ccidusb;
+		Status = gBS->HandleProtocol(
+			controllerHandles[handleIndex],
+			&gEfiUsbIoProtocolGuid,
+			(VOID**)&ccidusb
+			);
+		if (EFI_ERROR(Status)) {
+			AsciiErrorPrint("failed to find usb protocol, status=%d\n", Status);
+			return Status;
+		}
+		EFI_USB_CONFIG_DESCRIPTOR usbdesc;
+		ccidusb->UsbGetConfigDescriptor(
+			ccidusb,
+			&usbdesc
+			);
+		AsciiPrint("numInterfaces=%d bConfigVal=%d iConfig=%d\n",
+					  usbdesc.NumInterfaces,
+					  usbdesc.ConfigurationValue,
+					  usbdesc.Configuration
+			);
+		Status = ccidusb->UsbPortReset(ccidusb);
+		if (EFI_ERROR(Status)) {
+			AsciiErrorPrint("error resetting!\n");
+			return Status;
+		}
+		UINT16 Config;
+		UINT32 err;
+		Status = UsbGetConfiguration(
+			ccidusb,
+			&Config,
+			&err
+			);
+		if (EFI_ERROR(Status)) {
+			AsciiErrorPrint("get configuration error: Status=%d, err=%d\n", Status, err);
+			return Status;
+		}
+		AsciiPrint("Configuration=%d\n", Config);
+		Status = UsbSetConfiguration(
+			ccidusb,
+			1,
+			&err
+			);
+		if (EFI_ERROR(Status)) {
+			AsciiErrorPrint("set configuration failure: Status=%d, err=%d\n", Status, err);
+			return Status;
+		}
+
 		Status = GetSlotStatus(ccid);
 		if (EFI_ERROR(Status)) {
-			Print(L"Fail to get slot status.\n");
+			AsciiErrorPrint("Fail to get slot status.\n");
 			return Status;
 		}
 		Status = IccPowerOn(ccid);
